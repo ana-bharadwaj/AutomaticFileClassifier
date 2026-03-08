@@ -15,40 +15,6 @@ python app.py
 # 3. Open in browser
 # http://localhost:5000
 ```
-
-## How it works
-
-```
-app.py                  Flask server + shutdown hook
-engine/
-  permissions.py        File identity (path+size hash), grant/deny, state.json
-  sorter.py             Extension grouping, name similarity (Union-Find), file moving
-  watcher.py            Watchdog observer, download stabilization, thread-safe queue
-  ollama.py             Optional AI fallback — filename metadata only, no content
-templates/
-  index.html            Single-page UI: setup → live feed → summary
-```
-
-## Folder structure produced
-
-```
-~/Sorted/
-  Documents/
-    tax_return/
-      tax_return_2023.pdf
-      tax_return_2024.pdf
-    invoice/
-      invoice_jan.pdf
-      invoice_feb.pdf
-  Images/
-    vacation/
-      vacation_day1.jpg
-      vacation_day2.jpg
-  Code/
-    my_project/
-      my_project_notes.py
-```
-
 ## Ollama (optional)
 
 For files that can't be categorized by extension or name similarity,
