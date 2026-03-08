@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Downloads Sorter</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --accent: #7cffd4;
+    --accent2: #ff6b6b;
+    --accent3: #ffd166;
+    --text: #e8e8f0;
+    --muted: #5a5a7a;
+    --card: #16161f;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,255,212,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,255,212,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 2rem;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), #4dd9ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+    flex-shrink: 0;
+    margin-bottom: 4px;
+  }
+  .status-dot.active {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  /* ── Setup form ── */
+  .folder-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  @media (max-width: 600px) {
+    .folder-row { grid-template-columns: 1fr; }
+  }
+
+  .input-group label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* Hidden native file inputs */
+  .input-group input[type="file"] {
+    display: none;
+  }
+
+  /* Clickable drop zone that triggers the hidden input */
+  .folder-picker {
+    width: 100%;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+  }
+
+  .folder-picker:hover {
+    border-color: var(--accent);
+    background: rgba(124,255,212,0.04);
+  }
+
+  .folder-picker.selected {
+    border-style: solid;
+    border-color: rgba(124,255,212,0.4);
+  }
+
+  .folder-picker-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .folder-picker-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .folder-picker-label {
+    font-size: 0.82rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .folder-picker-hint {
+    font-size: 0.68rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .folder-picker-badge {
+    font-size: 0.65rem;
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: rgba(124,255,212,0.12);
+    color: var(--accent);
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    display: none;
+  }
+
+  .folder-picker.selected .folder-picker-badge { display: block; }
+
+  .btn {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-primary:hover { background: #5ae0bc; transform: translateY(-1px); }
+  .btn-primary:disabled { background: var(--muted); color: var(--border); cursor: not-allowed; transform: none; }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--accent2);
+    border: 1px solid var(--accent2);
+  }
+  .btn-danger:hover { background: rgba(255,107,107,0.1); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--text); color: var(--text); }
+
+  .btn-warn {
+    background: transparent;
+    color: var(--accent3);
+    border: 1px solid var(--accent3);
+  }
+  .btn-warn:hover { background: rgba(255,209,102,0.1); }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  /* ── Live feed ── */
+  #live-feed {
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .feed-empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding: 32px;
+  }
+
+  .feed-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+    animation: slideIn 0.3s ease;
+    background: var(--surface);
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .feed-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+
+  .feed-info { flex: 1; min-width: 0; }
+
+  .feed-name {
+    font-size: 0.85rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .feed-meta {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .feed-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .btn-sm {
+    font-size: 0.7rem;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-allow {
+    background: rgba(124,255,212,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(124,255,212,0.3);
+  }
+  .btn-allow:hover { background: rgba(124,255,212,0.25); }
+
+  .btn-deny {
+    background: rgba(255,107,107,0.1);
+    color: var(--accent2);
+    border: 1px solid rgba(255,107,107,0.2);
+  }
+  .btn-deny:hover { background: rgba(255,107,107,0.2); }
+
+  /* ── Sorted log ── */
+  .sorted-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    margin-bottom: 4px;
+    background: rgba(124,255,212,0.04);
+    border: 1px solid rgba(124,255,212,0.08);
+    animation: slideIn 0.25s ease;
+  }
+
+  .sorted-check { color: var(--accent); font-size: 0.9rem; }
+  .sorted-path { color: var(--muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .tag {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  .tag-images   { background: rgba(77,217,255,0.15);  color: #4dd9ff; }
+  .tag-videos   { background: rgba(255,107,107,0.15); color: #ff6b6b; }
+  .tag-audio    { background: rgba(255,209,102,0.15); color: #ffd166; }
+  .tag-docs     { background: rgba(124,255,212,0.15); color: var(--accent); }
+  .tag-code     { background: rgba(183,107,255,0.15); color: #b76bff; }
+  .tag-archives { background: rgba(255,150,50,0.15);  color: #ff9632; }
+  .tag-other    { background: rgba(100,100,120,0.15); color: var(--muted); }
+
+  /* ── Existing files modal ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    padding: 20px;
+  }
+
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .modal h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+  }
+
+  .modal-body {
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .existing-file-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .existing-file-row input[type=checkbox] {
+    accent-color: var(--accent);
+    width: 14px; height: 14px;
+    cursor: pointer;
+  }
+
+  .ef-name { flex: 1; color: var(--text); }
+  .ef-dest { color: var(--muted); font-size: 0.68rem; }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ── Hidden ── */
+  .hidden { display: none !important; }
+
+  /* ── Notification toast ── */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--card);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 0.82rem;
+    color: var(--accent);
+    z-index: 200;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    max-width: 320px;
+  }
+
+  #toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* ── Summary screen ── */
+  #summary-screen .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .summary-cat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .summary-cat-count {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--accent);
+  }
+
+  .summary-cat-name {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="status-dot" id="status-dot"></div>
+    <h1>Downloads Sorter</h1>
+  </header>
+
+  <!-- ── Setup Screen ── -->
+  <div id="setup-screen">
+    <div class="card">
+      <div class="card-title">Configure</div>
+      <div class="folder-row">
+
+        <!-- Watch folder picker -->
+        <div class="input-group">
+          <label>Watch Folder</label>
+          <!-- webkitdirectory lets the user pick a folder, not a file -->
+          <!-- multiple allows selecting all files inside -->
+          <input type="file" id="watch-file-input" webkitdirectory multiple
+                 onchange="handleFolderPick('watch', this)">
+          <div class="folder-picker" id="watch-picker" onclick="document.getElementById('watch-file-input').click()">
+            <div class="folder-picker-icon">📂</div>
+            <div class="folder-picker-text">
+              <div class="folder-picker-label" id="watch-picker-label">Click to select watch folder</div>
+              <div class="folder-picker-hint">Folder to monitor for new files</div>
+            </div>
+            <div class="folder-picker-badge" id="watch-badge">✓ Selected</div>
+          </div>
+          <!-- Hidden fallback input — user can type path manually if picker fails -->
+          <input type="text" id="watch-input" style="display:none;">
+        </div>
+
+        <!-- Destination folder picker -->
+        <div class="input-group">
+          <label>Destination Folder</label>
+          <input type="file" id="dest-file-input" webkitdirectory multiple
+                 onchange="handleFolderPick('dest', this)">
+          <div class="folder-picker" id="dest-picker" onclick="document.getElementById('dest-file-input').click()">
+            <div class="folder-picker-icon">📁</div>
+            <div class="folder-picker-text">
+              <div class="folder-picker-label" id="dest-picker-label">Click to select destination folder</div>
+              <div class="folder-picker-hint">Where sorted files will go</div>
+            </div>
+            <div class="folder-picker-badge" id="dest-badge">✓ Selected</div>
+          </div>
+          <input type="text" id="dest-input" style="display:none;">
+        </div>
+
+      </div>
+
+      <!-- Note explaining the browser limitation -->
+      <p style="font-size:0.7rem; color:var(--muted); margin-bottom:12px; line-height:1.5;">
+        ⚠ Browsers can't directly read folder paths. The app extracts the path from the files inside your selected folder.
+        If the folder is empty, type the path manually below.
+      </p>
+
+      <!-- Manual fallback inputs (shown if folder is empty) -->
+      <div id="manual-inputs" style="display:none; margin-bottom: 12px;">
+        <div class="folder-row">
+          <div class="input-group">
+            <label>Watch path (manual)</label>
+            <input type="text" id="watch-manual" placeholder="e.g. C:\Users\you\Downloads"
+                   style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--text); font-family:'DM Mono',monospace; font-size:0.82rem; outline:none;"
+                   oninput="syncManualPath('watch', this.value)">
+          </div>
+          <div class="input-group">
+            <label>Destination path (manual)</label>
+            <input type="text" id="dest-manual" placeholder="e.g. C:\Users\you\Sorted"
+                   style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--text); font-family:'DM Mono',monospace; font-size:0.82rem; outline:none;"
+                   oninput="syncManualPath('dest', this.value)">
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="start-btn" onclick="startWatcher()" disabled>Start Watcher</button>
+        <button class="btn btn-ghost" onclick="toggleManual()">Enter path manually</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main Screen ── -->
+  <div id="main-screen" class="hidden">
+
+    <!-- Stats -->
+    <div class="card">
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-value" id="stat-sorted">0</div>
+          <div class="stat-label">Sorted</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-pending">0</div>
+          <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-watching" style="color: var(--accent3); font-size:0.75rem; padding-top:4px;"></div>
+          <div class="stat-label">Watching</div>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top: 20px;">
+        <button class="btn btn-warn" onclick="scanExisting()">Scan Existing Files</button>
+        <button class="btn btn-danger" onclick="stopWatcher()">Stop & Exit</button>
+      </div>
+    </div>
+
+    <!-- Permission queue — new files as they arrive -->
+    <div class="card" id="queue-card">
+      <div class="card-title">Awaiting Permission</div>
+      <div id="live-feed">
+        <div class="feed-empty" id="feed-empty">
+          Watching for new files… they'll appear here.
+        </div>
+      </div>
+    </div>
+
+    <!-- Sorted log -->
+    <div class="card">
+      <div class="card-title">Sorted Files</div>
+      <div id="sorted-log">
+        <div class="feed-empty">Nothing sorted yet.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Summary Screen ── -->
+  <div id="summary-screen" class="hidden">
+    <div class="card">
+      <div class="card-title">Session Complete</div>
+      <div class="stats-bar" style="margin-bottom: 8px;">
+        <div class="stat">
+          <div class="stat-value" id="final-total">0</div>
+          <div class="stat-label">Files Sorted</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="final-dest" style="font-size:0.85rem; padding-top:6px; color: var(--text);"></div>
+          <div class="stat-label">Destination</div>
+        </div>
+      </div>
+      <div class="summary-grid" id="summary-grid"></div>
+      <div class="btn-row" style="margin-top:20px;">
+        <button class="btn btn-primary" onclick="location.reload()">Start New Session</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Existing Files Modal ── -->
+<div class="modal-overlay hidden" id="existing-modal">
+  <div class="modal">
+    <h2>Existing Files</h2>
+    <p style="font-size:0.8rem; color: var(--muted);">
+      Select which files to sort. Deselect any you want to leave alone.
+    </p>
+    <div style="display:flex; gap:8px; align-items:center; margin: 4px 0;">
+      <input type="checkbox" id="select-all-chk" checked onchange="toggleSelectAll(this.checked)" style="accent-color: var(--accent);">
+      <label for="select-all-chk" style="font-size:0.75rem; color:var(--muted); cursor:pointer;">Select all</label>
+      <span id="modal-count" style="font-size:0.7rem; color:var(--muted); margin-left:auto;"></span>
+    </div>
+    <div class="modal-body" id="existing-list"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="approveSelected()">Sort Selected</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div id="toast"></div>
+
+<script>
+  // ── State ────────────────────────────────────────────────────────────────
+  let pollInterval = null;
+  let statsInterval = null;
+  let existingFiles = [];
+  let pendingInFeed = new Set();
+  let sortedCount = 0;
+
+  // Tracks which pickers are filled
+  const pickerState = { watch: false, dest: false };
+
+  // ── Folder picker handler ─────────────────────────────────────────────────
+  // Called when user selects a folder via the file picker.
+  //
+  // The browser's webkitdirectory input gives us File objects whose
+  // .webkitRelativePath looks like: "FolderName/subfolder/file.txt"
+  // We take the first segment to get the folder name, then ask Flask
+  // to resolve the full absolute path via /api/resolve-path.
+  //
+  // Why can't we just get the path directly?
+  // Browser security sandboxing deliberately hides the real filesystem path.
+  // The workaround: send the folder name + a hint (first few file names)
+  // to Flask, which searches common locations to find the real path.
+  function handleFolderPick(which, input) {
+    const files = input.files;
+
+    if (!files || files.length === 0) {
+      // Folder was empty — show manual inputs
+      showManualHint(which);
+      return;
+    }
+
+    // Extract folder name from the first file's relative path
+    // webkitRelativePath = "FolderName/file.txt" → split → "FolderName"
+    const firstRelPath = files[0].webkitRelativePath;
+    const parts = firstRelPath.split('/');
+    const folderName = parts[0];
+
+    // Collect up to 10 filenames as hints for path resolution
+    // More hints = better chance Flask picks the right folder
+    const hints = Array.from(files).slice(0, 10).map(f => f.name);
+
+    // Ask Flask to resolve the actual absolute path
+    resolveAndSetPath(which, folderName, hints);
+  }
+
+  async function resolveAndSetPath(which, folderName, hints) {
+    const pickerEl  = document.getElementById(`${which}-picker`);
+    const labelEl   = document.getElementById(`${which}-picker-label`);
+    const badgeEl   = document.getElementById(`${which}-badge`);
+    const hiddenInput = document.getElementById(`${which}-input`);
+
+    labelEl.textContent = `Resolving ${folderName}…`;
+
+    try {
+      const res = await api('/api/resolve-path', 'POST', { folder_name: folderName, hints });
+
+      if (res.path) {
+        hiddenInput.value = res.path;
+        labelEl.textContent = res.path;
+        pickerEl.classList.add('selected');
+        pickerState[which] = true;
+        updateStartButton();
+        toast(`${which === 'watch' ? 'Watch' : 'Destination'} folder set.`);
+      } else {
+        // Flask couldn't find it — show manual inputs and pre-fill folder name as a hint
+        labelEl.textContent = `Couldn't find "${folderName}" — enter full path below`;
+        document.getElementById('manual-inputs').style.display = 'block';
+        const manualEl = document.getElementById(`${which}-manual`);
+        if (manualEl && !manualEl.value) manualEl.focus();
+        toast(`Couldn't auto-resolve path for "${folderName}". Please type it below.`, true);
+      }
+    } catch (e) {
+      labelEl.textContent = 'Error — enter path manually';
+      showManualHint(which);
+    }
+  }
+
+  // Strip surrounding quotes from pasted Windows paths and sync to hidden input
+  // e.g. "C:\Users\anabh\Downloads" → C:\Users\anabh\Downloads
+  function syncManualPath(which, raw) {
+    let clean = raw.trim();
+    // Strip surrounding double or single quotes
+    if ((clean.startsWith('"') && clean.endsWith('"')) ||
+        (clean.startsWith("'") && clean.endsWith("'"))) {
+      clean = clean.slice(1, -1).trim();
+    }
+    document.getElementById(`${which}-input`).value = clean;
+
+    // Update the picker label to show what was typed
+    const label = document.getElementById(`${which}-picker-label`);
+    const picker = document.getElementById(`${which}-picker`);
+    if (clean) {
+      label.textContent = clean;
+      picker.classList.add('selected');
+      pickerState[which] = true;
+    } else {
+      label.textContent = `Click to select ${which === 'watch' ? 'watch' : 'destination'} folder`;
+      picker.classList.remove('selected');
+      pickerState[which] = false;
+    }
+    updateStartButton();
+  }
+
+  function showManualHint(which) {
+    document.getElementById('manual-inputs').style.display = 'block';
+    // Focus the right manual input
+    setTimeout(() => {
+      const el = document.getElementById(`${which}-manual`);
+      if (el) el.focus();
+    }, 100);
+  }
+
+  function toggleManual() {
+    const el = document.getElementById('manual-inputs');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+
+  // Enable start button only when both folders are set
+  function updateStartButton() {
+    const watchVal  = document.getElementById('watch-input').value.trim();
+    const destVal   = document.getElementById('dest-input').value.trim();
+    const btn = document.getElementById('start-btn');
+    btn.disabled = !(watchVal && destVal);
+  }
+
+  // ── Start Watcher ─────────────────────────────────────────────────────────
+  async function startWatcher() {
+    // Prefer picker-resolved path, fall back to manually typed path
+    const watchManual = document.getElementById('watch-manual')?.value.trim();
+    const destManual  = document.getElementById('dest-manual')?.value.trim();
+
+    const watch = document.getElementById('watch-input').value.trim() || watchManual;
+    const dest  = document.getElementById('dest-input').value.trim()  || destManual;
+
+    const res = await api('/api/setup', 'POST', { watch_folder: watch, dest_folder: dest });
+    if (res.error) { toast(res.error, true); return; }
+
+    document.getElementById('setup-screen').classList.add('hidden');
+    document.getElementById('main-screen').classList.remove('hidden');
+    document.getElementById('status-dot').classList.add('active');
+    document.getElementById('stat-watching').textContent = watch;
+
+    toast('Watcher started!');
+
+    // Poll for new files every 2s
+    pollInterval = setInterval(pollPending, 2000);
+    statsInterval = setInterval(refreshStats, 5000);
+    refreshStats();
+  }
+
+  // ── Poll for new files ────────────────────────────────────────────────────
+  async function pollPending() {
+    const res = await api('/api/pending');
+    if (!res.files || res.files.length === 0) return;
+
+    res.files.forEach(f => {
+      if (!pendingInFeed.has(f.path)) {
+        pendingInFeed.add(f.path);
+        addToFeed(f);
+      }
+    });
+
+    document.getElementById('stat-pending').textContent = pendingInFeed.size;
+  }
+
+  // ── Add file to permission feed ───────────────────────────────────────────
+  function addToFeed(file) {
+    const feed = document.getElementById('live-feed');
+    document.getElementById('feed-empty').style.display = 'none';
+
+    const item = document.createElement('div');
+    item.className = 'feed-item';
+    item.id = `feed-${btoa(file.path).replace(/[^a-zA-Z0-9]/g,'')}`;
+    item.innerHTML = `
+      <div class="feed-icon">${categoryIcon(file.category)}</div>
+      <div class="feed-info">
+        <div class="feed-name" title="${file.path}">${file.name}</div>
+        <div class="feed-meta">${file.category} · ${file.size_human}</div>
+      </div>
+      <div class="feed-actions">
+        <button class="btn-sm btn-allow" onclick="decide('${escapePath(file.path)}', 'grant', this)">Allow</button>
+        <button class="btn-sm btn-deny"  onclick="decide('${escapePath(file.path)}', 'deny', this)">Deny</button>
+      </div>
+    `;
+    feed.prepend(item);
+  }
+
+  // ── Grant / Deny a file ───────────────────────────────────────────────────
+  async function decide(path, action, btn) {
+    btn.disabled = true;
+    btn.textContent = '…';
+
+    const res = await api('/api/permission', 'POST', { path, action });
+
+    // Remove from feed
+    const id = `feed-${btoa(path).replace(/[^a-zA-Z0-9]/g,'')}`;
+    const item = document.getElementById(id);
+    if (item) { item.style.opacity = '0'; item.style.transform = 'translateX(20px)'; item.style.transition = 'all 0.2s'; setTimeout(() => item.remove(), 200); }
+
+    pendingInFeed.delete(path);
+    document.getElementById('stat-pending').textContent = pendingInFeed.size;
+
+    if (action === 'grant' && res.sorted) {
+      addToSortedLog(res.sorted);
+      sortedCount++;
+      document.getElementById('stat-sorted').textContent = sortedCount;
+      toast(`Sorted → ${res.sorted.category}/${res.sorted.group}`);
+    } else if (action === 'deny') {
+      toast('File skipped.');
+    }
+  }
+
+  // ── Sorted log ────────────────────────────────────────────────────────────
+  function addToSortedLog(sorted) {
+    const log = document.getElementById('sorted-log');
+    // Remove empty placeholder
+    const empty = log.querySelector('.feed-empty');
+    if (empty) empty.remove();
+
+    const item = document.createElement('div');
+    item.className = 'sorted-item';
+    item.innerHTML = `
+      <span class="sorted-check">✓</span>
+      <span class="tag ${tagClass(sorted.category)}">${sorted.category}</span>
+      <span class="sorted-path" title="${sorted.dest}">${sorted.group} / ${sorted.dest.split('/').pop()}</span>
+    `;
+    log.prepend(item);
+  }
+
+  // ── Scan existing files ───────────────────────────────────────────────────
+  async function scanExisting() {
+    toast('Scanning existing files…');
+    const res = await api('/api/scan-existing');
+    if (res.error) { toast(res.error, true); return; }
+    if (res.total === 0) { toast('No existing files found.'); return; }
+
+    existingFiles = res.files;
+    openExistingModal(res.files);
+  }
+
+  function openExistingModal(files) {
+    const list = document.getElementById('existing-list');
+    list.innerHTML = '';
+    document.getElementById('modal-count').textContent = `${files.length} file${files.length !== 1 ? 's' : ''}`;
+
+    files.forEach((f, i) => {
+      const row = document.createElement('div');
+      row.className = 'existing-file-row';
+      row.innerHTML = `
+        <input type="checkbox" checked id="ef-${i}" data-path="${f.path}">
+        <div style="flex:1; min-width:0;">
+          <div class="ef-name">${f.name}</div>
+          <div class="ef-dest">→ ${f.dest_preview || f.category + '/' + f.group}</div>
+        </div>
+        <span class="tag ${tagClass(f.category)}">${f.category}</span>
+      `;
+      list.appendChild(row);
+    });
+
+    document.getElementById('existing-modal').classList.remove('hidden');
+  }
+
+  function closeModal() {
+    document.getElementById('existing-modal').classList.add('hidden');
+  }
+
+  function toggleSelectAll(checked) {
+    document.querySelectorAll('#existing-list input[type=checkbox]').forEach(c => c.checked = checked);
+  }
+
+  async function approveSelected() {
+    const checked = [...document.querySelectorAll('#existing-list input[type=checkbox]:checked')];
+    const paths = checked.map(c => c.dataset.path);
+
+    if (paths.length === 0) { closeModal(); return; }
+
+    closeModal();
+    toast(`Sorting ${paths.length} files…`);
+
+    const res = await api('/api/bulk-permission', 'POST', { paths, action: 'grant' });
+    if (res.error) { toast(res.error, true); return; }
+
+    res.results.forEach(r => {
+      if (r.sorted) {
+        addToSortedLog(r.sorted);
+        sortedCount++;
+      }
+    });
+
+    document.getElementById('stat-sorted').textContent = sortedCount;
+    toast(`Sorted ${res.results.filter(r => r.sorted).length} files!`);
+  }
+
+  // ── Stop watcher ──────────────────────────────────────────────────────────
+  async function stopWatcher() {
+    clearInterval(pollInterval);
+    clearInterval(statsInterval);
+
+    const res = await api('/api/stop', 'POST');
+    const summary = res.summary || {};
+
+    document.getElementById('status-dot').classList.remove('active');
+    document.getElementById('main-screen').classList.add('hidden');
+    document.getElementById('summary-screen').classList.remove('hidden');
+
+    document.getElementById('final-total').textContent = summary.total || 0;
+    document.getElementById('final-dest').textContent = document.getElementById('dest-input').value || '~/Sorted';
+
+    const grid = document.getElementById('summary-grid');
+    grid.innerHTML = '';
+    const cats = summary.by_category || {};
+    if (Object.keys(cats).length === 0) {
+      grid.innerHTML = '<p style="color:var(--muted); font-size:0.8rem;">No files were sorted this session.</p>';
+    } else {
+      Object.entries(cats).forEach(([cat, count]) => {
+        const div = document.createElement('div');
+        div.className = 'summary-cat';
+        div.innerHTML = `<div class="summary-cat-count">${count}</div><div class="summary-cat-name">${cat}</div>`;
+        grid.appendChild(div);
+      });
+    }
+  }
+
+  // ── Stats refresh ─────────────────────────────────────────────────────────
+  async function refreshStats() {
+    const res = await api('/api/status');
+    if (!res.watching) return;
+    sortedCount = res.sorted_count || sortedCount;
+    document.getElementById('stat-sorted').textContent = sortedCount;
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  async function api(url, method = 'GET', body = null) {
+    try {
+      const opts = {
+        method,
+        headers: { 'Content-Type': 'application/json' }
+      };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(url, opts);
+      return await res.json();
+    } catch (e) {
+      console.error(e);
+      return { error: e.message };
+    }
+  }
+
+  function escapePath(path) {
+    return path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  }
+
+  function categoryIcon(cat) {
+    const icons = {
+      Images: '🖼️', Videos: '🎬', Audio: '🎵', Documents: '📄',
+      Spreadsheets: '📊', Presentations: '📑', Archives: '📦',
+      Code: '💻', Executables: '⚙️', Fonts: '🔤', Other: '📁'
+    };
+    return icons[cat] || '📄';
+  }
+
+  function tagClass(cat) {
+    const map = {
+      Images: 'tag-images', Videos: 'tag-videos', Audio: 'tag-audio',
+      Documents: 'tag-docs', Spreadsheets: 'tag-docs', Presentations: 'tag-docs',
+      Code: 'tag-code', Archives: 'tag-archives'
+    };
+    return map[cat] || 'tag-other';
+  }
+
+  function toast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.borderColor = isError ? 'var(--accent2)' : 'var(--accent)';
+    t.style.color = isError ? 'var(--accent2)' : 'var(--accent)';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // Start button starts disabled until both folders are picked
+  document.getElementById('start-btn').disabled = true;
+</script>
+</body>
+</html>
